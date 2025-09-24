@@ -1,0 +1,499 @@
+獨熱編碼（One-Hot Encoding）
+定義
+獨熱編碼是一種將分類變量（categorical variable）轉換為二進制列的編碼方式，每個類別對應一個獨立的列，該列的值為1（表示該類別）或0（表示非該類別）。它適用於非序數變量（nominal variables），即類別之間沒有順序關係的變量。
+功能
+
+避免順序假設：獨熱編碼確保模型不會誤認為類別之間有大小或順序關係（例如，認為“男性=0”和“女性=1”有數值大小差異）。
+適合機器學習模型：特別適合基於距離的算法（如KNN）或線性模型（如邏輯回歸），因為它將類別轉換為獨立的二進制特徵。
+增加數據維度：每個類別生成一個新列，可能導致數據維度顯著增加，特別是當類別數量多時。
+
+適用場景
+
+非序數變量，例如：
+
+性別（男、女）
+血壓（高、正常、低）
+飲食習慣（健康、不健康）
+
+
+當模型需要明確區分類別，且類別之間無順序關係時。
+
+缺點
+
+當類別數量多時，會產生大量新列，增加計算複雜度和內存使用。
+可能導致稀疏數據（sparse data），因為每行只有一個1，其餘為0。
+
+
+標籤編碼（Label Encoding）
+定義
+標籤編碼是將分類變量的每個類別映射到一個整數值（例如，0、1、2...）。它適用於序數變量（ordinal variables），即類別之間有明確順序的變量。
+功能
+
+保持數據維度：標籤編碼不增加新列，直接將類別轉換為整數，保持數據緊湊。
+簡單高效：適合小型數據集或類別數量較少的場景，減少計算負擔。
+順序假設：標籤編碼假設類別之間有順序關係，這對於非序數變量可能導致模型誤解。
+
+適用場景
+
+序數變量，例如：
+
+教育水平（小學 < 中學 < 大學）
+等級（低 < 中 < 高）
+
+
+當模型能夠正確處理整數編碼的順序關係時（例如，決策樹或隨機森林）。
+
+缺點
+
+對於非序數變量，標籤編碼可能引入錯誤的順序假設（例如，模型可能認為“男性=0”小於“女性=1”）。
+對基於距離的算法（如KNN）或線性模型（如SVM）不友好，因為整數值可能被誤解為連續變量。
+
+
+功能差異總結
+
+特點獨熱編碼 (One-Hot Encoding)標籤編碼 (Label Encoding)編碼方式將每個類別轉換為一個二進制列（0或1）將每個類別映射為一個整數值（0, 1, 2...）適用變量類型非序數變量（無順序關係）序數變量（有順序關係）數據維度增加維度（每個類別生成一列）不增加維度（保持單列）模型適用性適合KNN、SVM、線性回歸等需要明確類別的模型適合決策樹、隨機森林等對順序不敏感的模型潛在問題高維度導致計算複雜，數據稀疏對非序數變量可能引入錯誤順序假設範例欄位性別、血壓、飲食習慣教育水平、等級
+
+// Example:糖尿病分类分析
+本笔记本以清晰易懂的方式解决以下作业任务，帮助理解糖尿病分类分析：
+
+为KNN（所有特征）、KNN（选择特征）和SVM（选择特征）绘制混淆矩阵和ROC曲线。
+解释评估指标（混淆矩阵、准确率、精确率、召回率、AUC、ROC等）。
+使用柱状图比较SVM和KNN模型的性能（准确率、F1分数等）。
+使用标签编码（Label Encoding）代替独热编码（One-Hot Encoding）重新进行分析，并比较性能差异。
+
+
+设置和导入库
+# 导入必要的Python库
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.preprocessing import LabelEncoder
+from sklearn.model_selection import train_test_split
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.svm import SVC
+from sklearn.metrics import confusion_matrix, roc_auc_score, roc_curve, classification_report, accuracy_score, precision_score, recall_score, f1_score
+from sklearn.feature_selection import SelectKBest, f_classif
+
+# 设置随机种子以确保结果可重复
+np.random.seed(10)
+
+
+加载和预处理数据（独热编码）
+加载数据集
+# 加载糖尿病分类数据集
+df = pd.read_csv('Diabetes-Classification.csv')
+
+# 显示数据集的前几行以了解数据结构
+df.head()
+
+处理缺失值
+# 检查数据集中的缺失值
+print(df.isnull().sum())
+
+# 删除包含缺失值的行
+df = df.dropna()
+
+# 验证缺失值是否已处理
+print("\n删除缺失值后：")
+print(df.isnull().sum())
+
+对分类变量进行独热编码
+# 对目标变量（Diagnosis）进行标签编码，将其转换为0（无糖尿病）和1（有糖尿病）
+le = LabelEncoder()
+df['Diagnosis'] = le.fit_transform(df['Diagnosis'])
+
+# 对非序数分类变量（Gender、Blood Pressure、Family History of Diabetes、Smoking、Diet、Exercise）进行独热编码
+cat_cols = ['Gender', 'Blood Pressure', 'Family History of Diabetes', 'Smoking', 'Diet', 'Exercise']
+df_one_hot = pd.get_dummies(df, columns=cat_cols)
+
+# 将布尔型列（True/False）转换为整数（1/0）
+bool_cols = df_one_hot.select_dtypes(include=['bool']).columns
+df_one_hot[bool_cols] = df_one_hot[bool_cols].astype(int)
+
+# 显示处理后的数据框
+df_one_hot.head()
+
+说明：独热编码将分类变量的每个类别转换为独立的二进制列（例如，Gender_Male和Gender_Female），避免模型误认为类别之间存在顺序关系（如Male=0和Female=1）。
+
+特征选择
+# 分离特征（X）和目标变量（y）
+X = df_one_hot.drop('Diagnosis', axis=1)
+y = df_one_hot['Diagnosis']
+
+# 使用SelectKBest和f_classif选择与目标变量最相关的5个特征
+selector = SelectKBest(score_func=f_classif, k=5)
+X_selected = selector.fit_transform(X, y)
+selected_features = X.columns[selector.get_support()]
+print("选择的特征：", selected_features)
+
+# 创建仅包含选择特征的数据框
+X_selected_df = df_one_hot[selected_features]
+
+说明：特征选择通过统计测试（f_classif）评估每个特征与目标变量的相关性，选择最重要的5个特征。这可以降低模型复杂性，但可能丢失部分信息。
+
+训练-测试拆分
+# 对所有特征进行训练-测试拆分，60%训练，40%测试
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.4, random_state=10)
+
+# 对选择特征进行训练-测试拆分
+X_selected_train, X_selected_test, y_train, y_test = train_test_split(X_selected_df, y, test_size=0.4, random_state=10)
+
+说明：test_size=0.4表示40%的数据用于测试，random_state=10确保拆分结果可重复。
+
+构建和训练模型（独热编码）
+KNN模型
+# KNN模型（所有特征），使用5个最近邻
+knn = KNeighborsClassifier(n_neighbors=5)
+knn.fit(X_train, y_train)
+y_pred_knn = knn.predict(X_test)
+
+# KNN模型（选择特征），使用5个最近邻
+knn_selected = KNeighborsClassifier(n_neighbors=5)
+knn_selected.fit(X_selected_train, y_train)
+y_pred_knn_selected = knn_selected.predict(X_selected_test)
+
+SVM模型
+# SVM模型（所有特征），使用RBF核，启用概率输出
+svm = SVC(kernel='rbf', probability=True, random_state=10)
+svm.fit(X_train, y_train)
+y_pred_svm = svm.predict(X_test)
+
+# SVM模型（选择特征），使用RBF核，启用概率输出
+svm_selected = SVC(kernel='rbf', probability=True, random_state=10)
+svm_selected.fit(X_selected_train, y_train)
+y_pred_svm_selected = svm_selected.predict(X_selected_test)
+
+说明：
+
+KNN（K-最近邻）：基于距离的分类算法，适合小型数据集。
+SVM（支持向量机）：使用径向基函数（RBF）核，适合处理复杂分类边界。
+probability=True允许模型输出概率分数，用于绘制ROC曲线。
+
+
+任务1：绘制混淆矩阵和ROC曲线
+绘制函数
+# 定义绘制混淆矩阵的函数
+def plot_confusion_matrix(y_true, y_pred, title):
+    cm = confusion_matrix(y_true, y_pred)
+    plt.figure(figsize=(6, 4))
+    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues')
+    plt.title(title)
+    plt.ylabel('真实标签')
+    plt.xlabel('预测标签')
+    plt.show()
+
+# 定义绘制ROC曲线的函数
+def plot_roc_curve(y_true, y_proba, model_name):
+    fpr, tpr, _ = roc_curve(y_true, y_proba)
+    auc_score = roc_auc_score(y_true, y_proba)
+    plt.figure(figsize=(6, 4))
+    plt.plot(fpr, tpr, label=f'{model_name} (AUC = {auc_score:.2f})')
+    plt.plot([0, 1], [0, 1], 'k--')  # 随机猜测的参考线
+    plt.xlabel('假阳性率 (FPR)')
+    plt.ylabel('真阳性率 (TPR)')
+    plt.title(f'{model_name}的ROC曲线')
+    plt.legend()
+    plt.show()
+
+KNN（所有特征）
+# 绘制KNN（所有特征）的混淆矩阵
+plot_confusion_matrix(y_test, y_pred_knn, 'KNN（所有特征）的混淆矩阵')
+# 计算概率并绘制ROC曲线
+y_proba_knn = knn.predict_proba(X_test)[:, 1]
+plot_roc_curve(y_test, y_proba_knn, 'KNN（所有特征）')
+
+KNN（选择特征）
+# 绘制KNN（选择特征）的混淆矩阵
+plot_confusion_matrix(y_test, y_pred_knn_selected, 'KNN（选择特征）的混淆矩阵')
+# 计算概率并绘制ROC曲线
+y_proba_knn_selected = knn_selected.predict_proba(X_selected_test)[:, 1]
+plot_roc_curve(y_test, y_proba_knn_selected, 'KNN（选择特征）')
+
+SVM（所有特征）
+# 绘制SVM（所有特征）的混淆矩阵
+plot_confusion_matrix(y_test, y_pred_svm, 'SVM（所有特征）的混淆矩阵')
+# 计算概率并绘制ROC曲线
+y_proba_svm = svm.predict_proba(X_test)[:, 1]
+plot_roc_curve(y_test, y_proba_svm, 'SVM（所有特征）')
+
+SVM（选择特征）
+# 绘制SVM（选择特征）的混淆矩阵
+plot_confusion_matrix(y_test, y_pred_svm_selected, 'SVM（选择特征）的混淆矩阵')
+# 计算概率并绘制ROC曲线
+y_proba_svm_selected = svm_selected.predict_proba(X_selected_test)[:, 1]
+plot_roc_curve(y_test, y_proba_svm_selected, 'SVM（选择特征）')
+
+说明：
+
+混淆矩阵：显示模型的预测结果，包括真阳性（TP）、真阴性（TN）、假阳性（FP）和假阴性（FN）。
+ROC曲线：展示模型在不同分类阈值下的真阳性率（召回率）与假阳性率的关系。AUC（曲线下面积）接近1表示模型区分能力强，0.5表示随机猜测。
+
+
+任务2：了解评估指标
+混淆矩阵
+混淆矩阵用于评估分类模型性能。对于二分类问题（Diagnosis：0=无糖尿病，1=有糖尿病），结构如下：
+
+
+
+
+预测为0（无糖尿病）
+预测为1（有糖尿病）
+
+
+
+实际为0（无糖尿病）
+真阴性 (TN)
+假阳性 (FP)
+
+
+实际为1（有糖尿病）
+假阴性 (FN)
+真阳性 (TP)
+
+
+
+真阳性 (TP)：正确预测为有糖尿病。
+真阴性 (TN)：正确预测为无糖尿病。
+假阳性 (FP)：错误预测为有糖尿病（误诊）。
+假阴性 (FN)：错误预测为无糖尿病（漏诊）。
+
+准确率（Accuracy）
+
+定义：正确预测的样本占总样本的比例。
+公式：[\text{准确率} = \frac{TP + TN}{TP + TN + FP + FN}]
+应用场景：适合类别平衡的数据集。如果数据不平衡（例如，Diagnosis中无糖尿病样本远多于有糖尿病样本），准确率可能误导。
+
+精确率（Precision）
+
+定义：预测为正类的样本中，实际为正类的比例。
+公式：[\text{精确率} = \frac{TP}{TP + FP}]
+应用场景：当误诊（假阳性）代价高时（如不必要的治疗），精确率是重要指标。
+
+召回率（Recall/Sensitivity）
+
+定义：实际正类中被正确预测为正类的比例。
+公式：[\text{召回率} = \frac{TP}{TP + FN}]
+应用场景：当漏诊（假阴性）代价高时（如未治疗导致健康风险），召回率至关重要。
+
+F1分数
+
+定义：精确率和召回率的调和平均数，平衡两者。
+公式：[\text{F1分数} = 2 \cdot \frac{\text{精确率} \cdot \text{召回率}}{\text{精确率} + \text{召回率}}]
+应用场景：适合不平衡数据集，综合考虑精确率和召回率。
+
+ROC曲线和AUC
+
+ROC曲线：展示不同分类阈值下真阳性率（召回率）与假阳性率的关系。
+AUC（曲线下面积）：衡量模型区分正负类的能力。
+AUC = 1：完美模型。
+AUC = 0.5：随机猜测。
+AUC < 0.5：模型表现差于随机猜测。
+
+
+
+在糖尿病数据集中的应用
+
+重要性：漏诊糖尿病（假阴性）可能导致严重健康问题，因此召回率是关键指标。
+AUC：提供模型整体性能的稳健衡量，特别适合不平衡数据集。
+
+
+任务3：比较SVM和KNN模型的性能
+# 定义模型及其预测结果
+models = {
+    'KNN（所有特征）': (y_test, y_pred_knn),
+    'KNN（选择特征）': (y_test, y_pred_knn_selected),
+    'SVM（所有特征）': (y_test, y_pred_svm),
+    'SVM（选择特征）': (y_test, y_pred_svm_selected)
+}
+
+# 初始化指标字典
+metrics = {'准确率': [], '精确率': [], '召回率': [], 'F1分数': []}
+model_names = []
+
+# 计算每个模型的指标
+for model_name, (y_true, y_pred) in models.items():
+    model_names.append(model_name)
+    metrics['准确率'].append(accuracy_score(y_true, y_pred))
+    metrics['精确率'].append(precision_score(y_true, y_pred, zero_division=0))
+    metrics['召回率'].append(recall_score(y_true, y_pred, zero_division=0))
+    metrics['F1分数'].append(f1_score(y_true, y_pred, zero_division=0))
+
+# 绘制柱状图比较性能
+fig, ax = plt.subplots(figsize=(10, 6))
+x = np.arange(len(model_names))
+width = 0.2
+
+ax.bar(x - width*1.5, metrics['准确率'], width, label='准确率', color='#1f77b4')
+ax.bar(x - width*0.5, metrics['精确率'], width, label='精确率', color='#ff7f0e')
+ax.bar(x + width*0.5, metrics['召回率'], width, label='召回率', color='#2ca02c')
+ax.bar(x + width*1.5, metrics['F1分数'], width, label='F1分数', color='#d62728')
+
+ax.set_xticks(x)
+ax.set_xticklabels(model_names, rotation=45)
+ax.set_ylabel('分数')
+ax.set_title('KNN与SVM模型性能比较（独热编码）')
+ax.legend()
+plt.tight_layout()
+plt.show()
+
+解读：
+
+柱状图展示四个模型在准确率、精确率、召回率和F1分数上的表现。
+如果选择特征的模型性能较差，可能表明丢弃的特征（如Age、BMI）对预测很重要。
+SVM通常在小型数据集和复杂分类边界上优于KNN。
+
+
+任务4：使用标签编码重新分析
+使用标签编码预处理
+# 重新加载数据集并删除缺失值
+df_label = pd.read_csv('Diabetes-Classification.csv')
+df_label = df_label.dropna()
+
+# 对所有分类变量进行标签编码
+cat_cols = ['Gender', 'Blood Pressure', 'Family History of Diabetes', 'Smoking', 'Diet', 'Exercise', 'Diagnosis']
+le = LabelEncoder()
+
+for col in cat_cols:
+    df_label[col] = le.fit_transform(df_label[col])
+
+# 分离特征和目标变量
+X_label = df_label.drop('Diagnosis', axis=1)
+y_label = df_label['Diagnosis']
+
+# 进行训练-测试拆分
+X_label_train, X_label_test, y_label_train, y_label_test = train_test_split(X_label, y_label, test_size=0.4, random_state=10)
+
+训练模型（标签编码）
+# KNN模型（标签编码）
+knn_label = KNeighborsClassifier(n_neighbors=5)
+knn_label.fit(X_label_train, y_label_train)
+y_pred_knn_label = knn_label.predict(X_label_test)
+
+# SVM模型（标签编码）
+svm_label = SVC(kernel='rbf', probability=True, random_state=10)
+svm_label.fit(X_label_train, y_label_train)
+y_pred_svm_label = svm_label.predict(X_label_test)
+
+分类报告
+# 打印KNN模型的分类报告
+print("KNN性能（标签编码）：")
+print(classification_report(y_label_test, y_pred_knn_label))
+
+# 打印SVM模型的分类报告
+print("\nSVM性能（标签编码）：")
+print(classification_report(y_label_test, y_pred_svm_label))
+
+绘制混淆矩阵和ROC曲线（标签编码）
+# KNN（标签编码）的混淆矩阵和ROC曲线
+plot_confusion_matrix(y_label_test, y_pred_knn_label, 'KNN（标签编码）的混淆矩阵')
+y_proba_knn_label = knn_label.predict_proba(X_label_test)[:, 1]
+plot_roc_curve(y_label_test, y_proba_knn_label, 'KNN（标签编码）')
+
+# SVM（标签编码）的混淆矩阵和ROC曲线
+plot_confusion_matrix(y_label_test, y_pred_svm_label, 'SVM（标签编码）的混淆矩阵')
+y_proba_svm_label = svm_label.predict_proba(X_label_test)[:, 1]
+plot_roc_curve(y_label_test, y_proba_svm_label, 'SVM（标签编码）')
+
+比较性能（独热编码 vs. 标签编码）
+# 计算标签编码模型的指标
+models_label = {
+    'KNN（标签编码）': (y_label_test, y_pred_knn_label),
+    'SVM（标签编码）': (y_label_test, y_pred_svm_label)
+}
+
+metrics_label = {'准确率': [], '精确率': [], '召回率': [], 'F1分数': []}
+model_names_label = []
+
+for model_name, (y_true, y_pred) in models_label.items():
+    model_names_label.append(model_name)
+    metrics_label['准确率'].append(accuracy_score(y_true, y_pred))
+    metrics_label['精确率'].append(precision_score(y_true, y_pred, zero_division=0))
+    metrics_label['召回率'].append(recall_score(y_true, y_pred, zero_division=0))
+    metrics_label['F1分数'].append(f1_score(y_true, y_pred, zero_division=0))
+
+# 合并独热编码和标签编码的指标
+combined_metrics = {
+    '准确率': metrics['准确率'] + metrics_label['准确率'],
+    '精确率': metrics['精确率'] + metrics_label['精确率'],
+    '召回率': metrics['召回率'] + metrics_label['召回率'],
+    'F1分数': metrics['F1分数'] + metrics_label['F1分数']
+}
+combined_model_names = model_names + model_names_label
+
+# 绘制柱状图比较独热编码和标签编码
+fig, ax = plt.subplots(figsize=(12, 6))
+x = np.arange(len(combined_model_names))
+width = 0.2
+
+ax.bar(x - width*1.5, combined_metrics['准确率'], width, label='准确率', color='#1f77b4')
+ax.bar(x - width*0.5, combined_metrics['精确率'], width, label='精确率', color='#ff7f0e')
+ax.bar(x + width*0.5, combined_metrics['召回率'], width, label='召回率', color='#2ca02c')
+ax.bar(x + width*1.5, combined_metrics['F1分数'], width, label='F1分数', color='#d62728')
+
+ax.set_xticks(x)
+ax.set_xticklabels(combined_model_names, rotation=45)
+ax.set_ylabel('分数')
+ax.set_title('独热编码与标签编码的性能比较')
+ax.legend()
+plt.tight_layout()
+plt.show()
+
+
+辅导讨论要点
+观察结果
+
+独热编码 vs. 标签编码：
+
+独热编码为每个类别创建二进制列，避免对非序数变量（如Gender、Smoking）的错误顺序假设，适合KNN和SVM。
+标签编码减少维度，但可能误导模型（例如，认为Male=0和Female=1有顺序关系），可能降低性能。
+检查柱状图，独热编码通常表现更好，因为数据集中的分类变量（如Gender、Smoking）大多是非序数的。
+
+
+特征选择：
+
+选择的特征（Exercise_Regular、Smoking_No、Smoking_Yes、Diet_Healthy、Diet_Poor）可能排除了重要预测变量（如Age、BMI），导致性能下降。
+
+
+模型性能：
+
+SVM在小型数据集和复杂分类边界上通常优于KNN。
+通过柱状图比较KNN和SVM的表现，观察独热编码是否显著提升性能。
+
+
+
+改进建议
+
+超参数调优：
+
+使用GridSearchCV优化KNN的n_neighbors参数和SVM的C、gamma参数，以提升模型性能。
+
+
+处理类别不平衡：
+
+如果Diagnosis中No（无糖尿病）样本远多于Yes（有糖尿病），尝试使用SMOTE（合成少数类过采样技术）或设置类权重。
+
+
+尝试其他模型：
+
+实验随机森林（Random Forest）或逻辑回归（Logistic Regression），比较其性能。
+
+
+特征工程：
+
+探索特征交互（如BMI * Age）或标准化数值特征（如Age、BMI）以提高模型表现。
+
+
+
+关键收获
+
+评估指标：在医疗数据集中，召回率（Recall）至关重要，以减少漏诊（假阴性）。AUC（曲线下面积）是衡量模型整体性能的稳健指标。
+编码选择：独热编码适合非序数变量（如Gender、Smoking），标签编码适合序数变量（如教育水平）。
+可视化：混淆矩阵和ROC曲线帮助理解模型在不同层面的性能（例如，类别预测和阈值选择）。
+
+輔導說明
+
+任務1：混淆矩陣和ROC曲線直觀展示了模型的預測性能。檢查AUC分數，了解哪個模型在區分糖尿病和非糖尿病患者時表現最佳。
+任務2：評估指標部分解釋了關鍵概念。討論召回率在糖尿病診斷中的重要性（避免漏診），以及AUC為何適合不平衡數據集。
+任務3：柱狀圖比較了四個模型的性能（KNN和SVM，分別使用所有特徵和選擇特徵）。注意選擇特徵是否導致性能下降。
+任務4：比較獨熱編碼和標籤編碼的性能，討論獨熱編碼為何更適合非序數變量（如Gender、Smoking）。
